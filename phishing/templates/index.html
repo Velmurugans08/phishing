@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhishGuard — AI Phishing Email Detector</title>
+    <meta name="description" content="Detect phishing emails instantly using machine learning. Paste any email and find out if it is safe or a phishing attempt." />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-main:       #0a0a1a;
+            --bg-card:       #0f0f2a;
+            --bg-input:      #111130;
+            --border:        rgba(100, 100, 200, 0.18);
+            --border-focus:  rgba(99, 102, 241, 0.6);
+            --accent-purple: #6366f1;
+            --accent-cyan:   #22d3ee;
+            --accent-pink:   #ec4899;
+            --danger:        #ef4444;
+            --success:       #10b981;
+            --warning:       #f59e0b;
+            --text-primary:  #f0f0ff;
+            --text-secondary:#94a3b8;
+            --text-muted:    #64748b;
+            --glow-purple:   rgba(99, 102, 241, 0.35);
+            --glow-danger:   rgba(239, 68, 68, 0.35);
+            --glow-success:  rgba(16, 185, 129, 0.35);
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================
+           ANIMATED BACKGROUND
+        ============================================================ */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-orb-1 {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+            top: -150px; left: -150px;
+            animation: floatOrb 12s ease-in-out infinite;
+        }
+        .bg-orb-2 {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(236,72,153,0.12), transparent 70%);
+            bottom: -100px; right: -100px;
+            animation: floatOrb 15s ease-in-out infinite reverse;
+        }
+        .bg-orb-3 {
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(34,211,238,0.1), transparent 70%);
+            top: 40%; left: 60%;
+            animation: floatOrb 10s ease-in-out infinite 3s;
+        }
+
+        @keyframes floatOrb {
+            0%,100% { transform: translate(0,0) scale(1); }
+            33%      { transform: translate(30px,-20px) scale(1.05); }
+            66%      { transform: translate(-20px,30px) scale(0.95); }
+        }
+
+        /* ============================================================
+           LAYOUT WRAPPER
+        ============================================================ */
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 20px 60px;
+        }
+
+        /* ============================================================
+           HEADER / HERO
+        ============================================================ */
+        header {
+            text-align: center;
+            padding: 50px 20px 40px;
+        }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(99,102,241,0.12);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: var(--accent-cyan);
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: clamp(2.2rem, 5vw, 3.6rem);
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent-cyan) 45%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 18px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 560px;
+            margin: 0 auto 20px;
+            line-height: 1.7;
+        }
+
+        .hero-tags {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .hero-tag {
+            background: rgba(99,102,241,0.08);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ============================================================
+           MAIN CARD
+        ============================================================ */
+        .main-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 36px;
+            margin-top: 10px;
+            box-shadow: 0 0 60px rgba(99,102,241,0.08), 0 20px 60px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            transition: box-shadow 0.4s ease;
+        }
+
+        /* ============================================================
+           TEXTAREA
+        ============================================================ */
+        .input-section label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 10px;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+        }
+
+        #emailInput {
+            width: 100%;
+            min-height: 200px;
+            background: var(--bg-input);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            color: var(--text-primary);
+            font-family: "JetBrains Mono", monospace;
+            font-size: 13.5px;
+            line-height: 1.7;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+
+        #emailInput::placeholder { color: var(--text-muted); }
+
+        #emailInput:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--glow-purple), inset 0 0 20px rgba(99,102,241,0.04);
+        }
+
+        .char-counter {
+            position: absolute;
+            bottom: 12px;
+            right: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ============================================================
+           SAMPLE BUTTONS
+        ============================================================ */
+        .sample-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+            margin-bottom: 22px;
+            align-items: center;
+        }
+
+        .sample-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sample-btn {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: "Inter", sans-serif;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sample-btn:hover { background: rgba(99,102,241,0.15); border-color: var(--accent-purple); color: white; }
+        .sample-btn.phishing:hover { background: rgba(239,68,68,0.12); border-color: var(--danger); }
+        .sample-btn.safe:hover { background: rgba(16,185,129,0.12); border-color: var(--success); }
+
+        /* ============================================================
+           ACTION BUTTONS
+        ============================================================ */
+        .action-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-analyze {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px 28px;
+            background: linear-gradient(135deg, var(--accent-purple), #818cf8);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: "Inter", sans-serif;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(99,102,241,0.4);
+        }
+
+        .btn-analyze::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #818cf8, var(--accent-cyan));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn-analyze:hover::before { opacity: 1; }
+        .btn-analyze:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.55); }
+        .btn-analyze:active { transform: translateY(0); }
+        .btn-analyze span { position: relative; z-index: 1; }
+
+        .btn-analyze.loading { pointer-events: none; opacity: 0.8; }
+
+        .btn-clear {
+            padding: 15px 22px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            font-family: "Inter", sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover { background: rgba(255,255,255,0.09); color: white; }
+
+        /* ============================================================
+           RESULT PANEL
+        ============================================================ */
+        #resultPanel {
+            margin-top: 30px;
+            display: none;
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-verdict {
+            border-radius: 18px;
+            padding: 28px 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            border: 1px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-verdict::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+        }
+
+        .result-verdict.phishing {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239,68,68,0.35);
+            box-shadow: 0 0 40px var(--glow-danger);
+        }
+
+        .result-verdict.phishing::before {
+            background: linear-gradient(135deg, var(--danger), transparent);
+        }
+
+        .result-verdict.safe {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: rgba(16,185,129,0.35);
+            box-shadow: 0 0 40px var(--glow-success);
+        }
+
+        .result-verdict.safe::before {
+            background: linear-gradient(135deg, var(--success), transparent);
+        }
+
+        .verdict-icon {
+            font-size: 3rem;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 12px currentColor);
+        }
+
+        .verdict-icon.phishing { color: var(--danger); }
+        .verdict-icon.safe     { color: var(--success); }
+
+        .verdict-text h2 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .verdict-text h2.phishing { color: #ff6b6b; }
+        .verdict-text h2.safe     { color: #34d399; }
+
+        .verdict-text p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .confidence-badge {
+            margin-left: auto;
+            text-align: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 14px;
+            padding: 12px 18px;
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        .confidence-badge .conf-value {
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .confidence-badge .conf-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+        }
+
+        /* ============================================================
+           DETAIL STATS GRID
+        ============================================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 16px;
+            text-align: center;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .stat-card:hover { border-color: var(--accent-purple); transform: translateY(-2px); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 500;
+        }
+
+        /* ============================================================
+           KEYWORDS SECTION
+        ============================================================ */
+        .keywords-section {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 20px;
+        }
+
+        .keywords-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 12px;
+        }
+
+        .keywords-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .keyword-tag {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            border-radius: 100px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        .no-keywords {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        /* ============================================================
+           LOADING SPINNER
+        ============================================================ */
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ============================================================
+           ERROR PANEL
+        ============================================================ */
+        #errorPanel {
+            display: none;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #fca5a5;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        /* ============================================================
+           FOOTER INFO CARDS
+        ============================================================ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .info-card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-3px); }
+
+        .info-icon {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .info-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .info-card p {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           FOOTER
+        ============================================================ */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        footer span { color: var(--accent-purple); }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+        @media (max-width: 600px) {
+            .main-card { padding: 24px 18px; }
+            .action-row { flex-direction: column; }
+            .btn-clear { width: 100%; }
+            .result-verdict { flex-direction: column; text-align: center; }
+            .confidence-badge { margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background decorations -->
+    <div class="bg-grid"></div>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <div class="page-wrapper">
+
+        <!-- HEADER -->
+        <header>
+            <div class="logo-badge">
+                🛡️ &nbsp; AI-Powered Security Tool
+            </div>
+            <h1>Phishing Email<br>Detector</h1>
+            <p class="hero-subtitle">
+                Paste any email content below and our machine learning model
+                will instantly detect whether it is a phishing attempt or a safe email.
+            </p>
+            <div class="hero-tags">
+                <span class="hero-tag">TF-IDF Vectorization</span>
+                <span class="hero-tag">Logistic Regression</span>
+                <span class="hero-tag">Naive Bayes</span>
+                <span class="hero-tag">URL Detection</span>
+                <span class="hero-tag">Keyword Analysis</span>
+            </div>
+        </header>
+
+        <!-- MAIN CARD -->
+        <div class="main-card">
+
+            <!-- Email Input -->
+            <div class="input-section">
+                <label for="emailInput">📧 &nbsp; Paste Email Content</label>
+                <div class="textarea-wrapper">
+                    <textarea
+                        id="emailInput"
+                        placeholder="Paste the full email text here...&#10;&#10;Example: URGENT: Your account has been suspended. Click here to verify..."
+                        spellcheck="false"
+                    ></textarea>
+                    <span class="char-counter" id="charCounter">0 characters</span>
+                </div>
+            </div>
+
+            <!-- Sample Buttons -->
+            <div class="sample-row">
+                <span class="sample-label">Try a sample →</span>
+                <button class="sample-btn phishing" onclick="loadSample('phishing')">
+                    🚨 Phishing Example
+                </button>
+                <button class="sample-btn safe" onclick="loadSample('safe')">
+                    ✅ Safe Example
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-row">
+                <button class="btn-analyze" id="analyzeBtn" onclick="analyzeEmail()">
+                    <span id="btnText">🔍 &nbsp; Analyze Email</span>
+                </button>
+                <button class="btn-clear" onclick="clearAll()">✕ &nbsp; Clear</button>
+            </div>
+
+            <!-- Error Panel -->
+            <div id="errorPanel"></div>
+
+            <!-- Result Panel -->
+            <div id="resultPanel">
+
+                <!-- Verdict Banner -->
+                <div class="result-verdict" id="verdictCard">
+                    <div class="verdict-icon" id="verdictIcon"></div>
+                    <div class="verdict-text">
+                        <h2 id="verdictTitle"></h2>
+                        <p id="verdictDesc"></p>
+                    </div>
+                    <div class="confidence-badge">
+                        <div class="conf-value" id="confidenceValue"></div>
+                        <div class="conf-label">Confidence</div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statUrls">0</div>
+                        <div class="stat-label">URLs Found</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statKeywords">0</div>
+                        <div class="stat-label">Suspicious Keywords</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statLength">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                </div>
+
+                <!-- Keywords Found -->
+                <div class="keywords-section">
+                    <div class="keywords-title">⚠️ &nbsp; Suspicious Keywords Detected</div>
+                    <div class="keywords-list" id="keywordsList"></div>
+                </div>
+
+            </div>
+            <!-- end resultPanel -->
+
+        </div>
+        <!-- end main-card -->
+
+        <!-- INFO CARDS -->
+        <div class="info-grid">
+            <div class="info-card">
+                <span class="info-icon">🔢</span>
+                <h3>TF-IDF Features</h3>
+                <p>Converts email words into numerical importance scores to identify statistically suspicious patterns.</p>
+            </div>
+            <div class="info-card">
+                <span class="info-icon">🔗</span>
+                <h3>URL Detection</h3>
+                <p>Counts and flags suspicious URLs embedded in the email — a common phishing tactic.</p>
+            </div>
+            <div class="info-card">
+                <span class="info-icon">🧠</span>
+                <h3>Dual ML Models</h3>
+                <p>Trained on Logistic Regression and Naive Bayes; best model auto-selected by accuracy.</p>
+            </div>
+            <div class="info-card">
+                <span class="info-icon">🔑</span>
+                <h3>Keyword Analysis</h3>
+                <p>Detects phishing-specific words like "urgent", "verify", "password", "bank", and more.</p>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer>
+            <p>Phishing Email Detection Model &nbsp;|&nbsp; Built with <span>Python</span>, <span>Scikit-learn</span> &amp; <span>Flask</span></p>
+        </footer>
+
+    </div><!-- end page-wrapper -->
+
+
+    <script>
+        // ============================================================
+        // Character counter
+        // ============================================================
+        const emailInput   = document.getElementById("emailInput");
+        const charCounter  = document.getElementById("charCounter");
+
+        emailInput.addEventListener("input", () => {
+            const len = emailInput.value.length;
+            charCounter.textContent = len.toLocaleString() + " characters";
+        });
+
+        // ============================================================
+        // Load sample email from server
+        // ============================================================
+        async function loadSample(type) {
+            try {
+                const res  = await fetch(`/sample/${type}`);
+                const data = await res.json();
+                if (data.success) {
+                    emailInput.value = data.text;
+                    charCounter.textContent = data.text.length.toLocaleString() + " characters";
+                    hideResult();
+                    hideError();
+                }
+            } catch (err) {
+                showError("Failed to load sample email.");
+            }
+        }
+
+        // ============================================================
+        // Main analyze function
+        // ============================================================
+        async function analyzeEmail() {
+            const text = emailInput.value.trim();
+
+            if (!text) {
+                showError("Please paste some email text first.");
+                return;
+            }
+
+            setLoading(true);
+            hideResult();
+            hideError();
+
+            try {
+                const res  = await fetch("/predict", {
+                    method : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body   : JSON.stringify({ email_text: text })
+                });
+
+                const data = await res.json();
+
+                if (!data.success) {
+                    showError(data.error || "Prediction failed. Please try again.");
+                    return;
+                }
+
+                displayResult(data, text);
+
+            } catch (err) {
+                showError("Connection error. Make sure the server is running.");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ============================================================
+        // Display result
+        // ============================================================
+        function displayResult(data, originalText) {
+            const isPhishing   = data.prediction === 1;
+            const verdictCard  = document.getElementById("verdictCard");
+            const verdictIcon  = document.getElementById("verdictIcon");
+            const verdictTitle = document.getElementById("verdictTitle");
+            const verdictDesc  = document.getElementById("verdictDesc");
+            const confValue    = document.getElementById("confidenceValue");
+
+            // Verdict card styling
+            verdictCard.className = "result-verdict " + (isPhishing ? "phishing" : "safe");
+            verdictIcon.className = "verdict-icon "   + (isPhishing ? "phishing" : "safe");
+
+            if (isPhishing) {
+                verdictIcon.textContent  = "⚠️";
+                verdictTitle.className   = "phishing";
+                verdictTitle.textContent = "Phishing Email Detected!";
+                verdictDesc.textContent  =
+                    "This email shows strong signs of a phishing attempt. " +
+                    "Do not click any links or provide personal information.";
+                confValue.style.color   = "#ff6b6b";
+            } else {
+                verdictIcon.textContent  = "✅";
+                verdictTitle.className   = "safe";
+                verdictTitle.textContent = "Safe Email";
+                verdictDesc.textContent  =
+                    "This email appears to be legitimate. " +
+                    "No significant phishing indicators were detected.";
+                confValue.style.color   = "#34d399";
+            }
+
+            confValue.textContent = data.confidence + "%";
+
+            // Stats
+            document.getElementById("statUrls").textContent     = data.url_count;
+            document.getElementById("statKeywords").textContent = data.keyword_count;
+            document.getElementById("statLength").textContent   = originalText.length.toLocaleString();
+
+            // Keywords list
+            const kwList = document.getElementById("keywordsList");
+            kwList.innerHTML = "";
+
+            if (data.found_keywords && data.found_keywords.length > 0) {
+                data.found_keywords.forEach(kw => {
+                    const tag = document.createElement("span");
+                    tag.className   = "keyword-tag";
+                    tag.textContent = kw;
+                    kwList.appendChild(tag);
+                });
+            } else {
+                const msg = document.createElement("span");
+                msg.className   = "no-keywords";
+                msg.textContent = "No suspicious keywords detected.";
+                kwList.appendChild(msg);
+            }
+
+            // Show panel
+            const panel = document.getElementById("resultPanel");
+            panel.style.display = "block";
+            // Restart animation
+            panel.style.animation = "none";
+            panel.offsetHeight; // reflow
+            panel.style.animation = "";
+        }
+
+        // ============================================================
+        // UI helpers
+        // ============================================================
+        function setLoading(state) {
+            const btn     = document.getElementById("analyzeBtn");
+            const btnText = document.getElementById("btnText");
+
+            if (state) {
+                btn.classList.add("loading");
+                btnText.innerHTML = '<span class="spinner"></span> Analyzing...';
+            } else {
+                btn.classList.remove("loading");
+                btnText.innerHTML = "🔍 &nbsp; Analyze Email";
+            }
+        }
+
+        function showError(msg) {
+            const panel = document.getElementById("errorPanel");
+            panel.style.display = "block";
+            panel.textContent   = "⚠️  " + msg;
+        }
+
+        function hideError() {
+            document.getElementById("errorPanel").style.display = "none";
+        }
+
+        function hideResult() {
+            document.getElementById("resultPanel").style.display = "none";
+        }
+
+        function clearAll() {
+            emailInput.value            = "";
+            charCounter.textContent     = "0 characters";
+            hideResult();
+            hideError();
+            emailInput.focus();
+        }
+
+        // Allow Ctrl+Enter to analyze
+        emailInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && e.ctrlKey) analyzeEmail();
+        });
+    </script>
+
+</body>
+</html>
